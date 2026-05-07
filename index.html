@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DJ Studio</title>
+    <title>DJ Štúdio</title>
     <link rel="icon" href="thumbnail.png" type="image/png">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.min.js"></script>
 
     <style>
         body {
@@ -17,6 +19,7 @@
             align-items: center;
             min-height: 100vh;
             overflow-x: hidden;
+            padding-bottom: 50px;
         }
 
         h1 {
@@ -39,9 +42,10 @@
         .controls {
             margin-top: 5px;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
         input[type="file"] { display: none; }
@@ -68,13 +72,95 @@
             transform: translateY(-2px);
         }
 
+        #removeFileBtn {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+            color: #ff4d4d;
+            padding: 10px 15px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            display: none;
+        }
+
+        #removeFileBtn:hover {
+            background: #ff0000;
+            color: white;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+        }
+
+        .main-display-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 10px;
+        }
+
         canvas {
-            margin-top: 20px;
             border-radius: 15px;
             background: #000;
             box-shadow: 0 0 40px rgba(191, 0, 255, 0.25);
             display: block;
             border: 1px solid rgba(255, 255, 255, 0.05);
+            width: 700px;
+            height: 280px;
+        }
+
+        .jog-wheel {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: conic-gradient(#111, #222, #111, #080808, #111);
+            border: 10px solid #1b1b33;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8), inset 0 0 15px rgba(191,0,255,0.3);
+            position: relative;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .jog-wheel:active { cursor: grabbing; }
+
+        .jog-wheel::before {
+            content: "";
+            position: absolute;
+            width: 90%; height: 90%;
+            border-radius: 50%;
+            border: 1px solid rgba(191, 0, 255, 0.1);
+            background: repeating-radial-gradient(circle, transparent 0, transparent 5px, rgba(255,255,255,0.02) 6px);
+        }
+
+        .jog-marker {
+            position: absolute;
+            top: 12px;
+            width: 8px;
+            height: 30px;
+            background: #bf00ff;
+            border-radius: 4px;
+            box-shadow: 0 0 15px #bf00ff;
+        }
+
+        .jog-center {
+            width: 50px;
+            height: 50px;
+            background: #05050a;
+            border-radius: 50%;
+            border: 2px solid #bf00ff;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #bf00ff;
+            font-weight: bold;
         }
 
         .seek-container {
@@ -82,7 +168,7 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-top: 15px;
+            margin-top: 25px;
         }
 
         #seekBar {
@@ -104,6 +190,7 @@
             display: flex;
             justify-content: center;
             width: 100%;
+            margin-bottom: 25px;
         }
 
         #toggleBtn {
@@ -131,8 +218,6 @@
         }
 
         .dj-panel {
-            position: fixed;
-            bottom: 20px;
             background: rgba(15, 15, 30, 0.9);
             padding: 20px 25px;
             border-radius: 25px;
@@ -142,9 +227,18 @@
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
         }
 
-        .dj-controls-panel { left: 30px; gap: 20px; }
+        .dj-controls-panel { 
+            position: relative;
+            flex-wrap: wrap; 
+            justify-content: center;
+            max-width: 1000px; 
+            gap: 15px; 
+            margin: 0 auto;
+        }
         
         .performance-panel { 
+            position: fixed;
+            bottom: 20px;
             right: 30px; 
             flex-direction: column; 
             gap: 15px; 
@@ -201,7 +295,7 @@
         }
 
         .fader-label {
-            font-size: 9px;
+            font-size: 12px;
             color: #bf00ff;
             font-weight: 900;
             letter-spacing: 1px;
@@ -209,7 +303,7 @@
         }
 
         .fader-value {
-            font-size: 12px;
+            font-size: 14px;
             color: #fff;
             font-weight: bold;
             min-width: 45px;
@@ -230,7 +324,14 @@
             letter-spacing: 1.25px;
         }
 
-        .panel-btn:hover { background: #bf00ff; border-color: white; }
+        .panel-btn:hover:not(:disabled) { background: #bf00ff; border-color: white; }
+        .panel-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        #exportBtn {
+            background: linear-gradient(135deg, #00b344 0%, #007a2e 100%);
+            border-color: #00ff62;
+            margin-top: 10px;
+        }
 
         .switch-wrap {
             display: flex;
@@ -282,15 +383,14 @@
             transition: 0.3s;
             border: 1px solid rgba(191, 0, 255, 0.2);
         }
-
         .back-btn:hover { background: #bf00ff; }
     </style>
 </head>
-<body>
+<body autocomplete="off">
 
 <a href="/" class="back-btn">⟵ Späť na portál</a>
 
-<h1>DJ Studio</h1>
+<h1>DJ Štúdio</h1>
 
 <div class="controls">
     <label class="file-btn">
@@ -298,13 +398,20 @@
         <span id="fileName">Vložiť súbor</span>
         <input type="file" id="audioFile" accept="audio/*">
     </label>
+    <button id="removeFileBtn" title="Odstrániť súbor">✖</button>
 </div>
 
-<canvas id="canvas" width="900" height="280"></canvas>
+<div class="main-display-area">
+    <div id="jogWheel" class="jog-wheel">
+        <div class="jog-marker"></div>
+        <div class="jog-center">ÚMIKT</div>
+    </div>
+    <canvas id="canvas" width="700" height="280"></canvas>
+</div>
 
 <div class="seek-container">
     <span id="currentTime" class="time-display">0:00</span>
-    <input type="range" id="seekBar" value="0" step="1">
+    <input type="range" id="seekBar" value="0" step="0.01">
     <span id="durationTime" class="time-display">0:00</span>
 </div>
 
@@ -318,62 +425,86 @@
 <div class="dj-panel dj-controls-panel">
     <div class="fader-container">
         <span class="fader-label">VOL</span>
-        <div class="fader-wrapper">
-            <input type="range" id="volumeSlider" class="vertical-fader" min="0" max="1" step="0.01" value="0.5" orient="vertical">
-        </div>
+        <div class="fader-wrapper"><input type="range" id="volumeSlider" class="vertical-fader" min="0" max="1" step="0.01" value="0.5" orient="vertical"></div>
         <span id="volPercent" class="fader-value">50%</span>
     </div>
     <div class="fader-container">
         <span class="fader-label">FILTER</span>
-        <div class="fader-wrapper">
-            <input type="range" id="filterSlider" class="vertical-fader" min="-1" max="1" step="0.01" value="0" orient="vertical">
-        </div>
+        <div class="fader-wrapper"><input type="range" id="filterSlider" class="vertical-fader" min="-1" max="1" step="0.01" value="0" orient="vertical"></div>
         <span id="filterLabel" class="fader-value">OFF</span>
     </div>
     <div class="fader-container">
-        <span class="fader-label">PITCH</span>
-        <div class="fader-wrapper">
-            <input type="range" id="pitchSlider" class="vertical-fader" min="0.25" max="5.0" step="0.01" value="1.0" orient="vertical">
-        </div>
+        <span class="fader-label">SPEED</span>
+        <div class="fader-wrapper"><input type="range" id="pitchSlider" class="vertical-fader" min="0.25" max="5.0" step="0.01" value="1.0" orient="vertical"></div>
         <span id="pitchValue" class="fader-value">1.00x</span>
     </div>
     <div class="fader-container">
         <span class="fader-label">PAN</span>
-        <div class="fader-wrapper">
-            <input type="range" id="panSlider" class="vertical-fader" min="-1" max="1" step="0.01" value="0" orient="vertical">
-        </div>
+        <div class="fader-wrapper"><input type="range" id="panSlider" class="vertical-fader" min="-1" max="1" step="0.01" value="0" orient="vertical"></div>
         <span id="panLabel" class="fader-value">MID</span>
     </div>
     <div class="fader-container">
         <span class="fader-label">VERB</span>
-        <div class="fader-wrapper">
-            <input type="range" id="reverbSlider" class="vertical-fader" min="0" max="1" step="0.01" value="0" orient="vertical">
-        </div>
+        <div class="fader-wrapper"><input type="range" id="reverbSlider" class="vertical-fader" min="0" max="1" step="0.01" value="0" orient="vertical"></div>
         <span id="reverbLabel" class="fader-value">0%</span>
     </div>
     <div class="fader-container">
         <span class="fader-label">DRIVE</span>
-        <div class="fader-wrapper">
-            <input type="range" id="driveSlider" class="vertical-fader" min="0" max="50" step="1" value="0" orient="vertical">
-        </div>
+        <div class="fader-wrapper"><input type="range" id="driveSlider" class="vertical-fader" min="0" max="50" step="1" value="0" orient="vertical"></div>
         <span id="driveLabel" class="fader-value">0</span>
+    </div>
+
+    <div class="fader-container">
+        <span class="fader-label">LOW</span>
+        <div class="fader-wrapper"><input type="range" id="eqLowSlider" class="vertical-fader" min="-24" max="24" step="1" value="0" orient="vertical"></div>
+        <span id="eqLowLabel" class="fader-value">0dB</span>
+    </div>
+    <div class="fader-container">
+        <span class="fader-label">MID</span>
+        <div class="fader-wrapper"><input type="range" id="eqMidSlider" class="vertical-fader" min="-24" max="24" step="1" value="0" orient="vertical"></div>
+        <span id="eqMidLabel" class="fader-value">0dB</span>
+    </div>
+    <div class="fader-container">
+        <span class="fader-label">HIGH</span>
+        <div class="fader-wrapper"><input type="range" id="eqHighSlider" class="vertical-fader" min="-24" max="24" step="1" value="0" orient="vertical"></div>
+        <span id="eqHighLabel" class="fader-value">0dB</span>
+    </div>
+    <div class="fader-container">
+        <span class="fader-label">ECHO</span>
+        <div class="fader-wrapper"><input type="range" id="echoSlider" class="vertical-fader" min="0" max="1" step="0.01" value="0" orient="vertical"></div>
+        <span id="echoLabel" class="fader-value">0%</span>
+    </div>
+    <div class="fader-container">
+        <span class="fader-label">FLANG</span>
+        <div class="fader-wrapper"><input type="range" id="flangerSlider" class="vertical-fader" min="0" max="1" step="0.01" value="0" orient="vertical"></div>
+        <span id="flangerLabel" class="fader-value">0%</span>
+    </div>
+    <div class="fader-container">
+        <span class="fader-label">LO-FI</span>
+        <div class="fader-wrapper"><input type="range" id="lofiSlider" class="vertical-fader" min="0" max="1" step="0.01" value="0" orient="vertical"></div>
+        <span id="lofiLabel" class="fader-value">OFF</span>
+    </div>
+    <div class="fader-container">
+        <span class="fader-label">GATER</span>
+        <div class="fader-wrapper"><input type="range" id="gaterSlider" class="vertical-fader" min="0" max="1" step="0.01" value="0" orient="vertical"></div>
+        <span id="gaterLabel" class="fader-value">0%</span>
     </div>
 </div>
 
 <div class="dj-panel performance-panel">
-    <span class="fader-label" style="text-align:center; margin-bottom: 5px;">FX Master</span>
+    <span class="fader-label" style="text-align:center; margin-bottom: 8px; font-size: 16px; letter-spacing: 2px;">Efekt Majster</span>
     
     <div class="switch-wrap">
-        <span class="fader-label">Loop</span>
+        <span class="fader-label">Opakovanie</span>
         <label class="switch">
             <input type="checkbox" id="loopToggle">
             <span class="flip"></span>
         </label>
     </div>
 
-    <button id="cueBtn" class="panel-btn">⏮ CUE (Reset Time)</button>
-
-    <button id="resetFxBtn" class="panel-btn" style="color: #ff00ff; border-color: #ff00ff; margin-top: 10px;">Reset All FX</button>
+    <button id="cueBtn" class="panel-btn">⏮ CUE (Reset Čas)</button>
+    <button id="resetFxBtn" class="panel-btn" style="color: #ff00ff; border-color: #ff00ff;">Reset všetky Efekty</button>
+    <button id="exportBtn" class="panel-btn">📥 Export Audia</button>
 </div>
 
 <audio id="audio"></audio>
@@ -381,57 +512,188 @@
 <script>
 const audio = document.getElementById("audio");
 const fileInput = document.getElementById("audioFile");
+const removeFileBtn = document.getElementById("removeFileBtn");
 const toggleBtn = document.getElementById("toggleBtn");
 const btnText = document.getElementById("btnText");
 const cueBtn = document.getElementById("cueBtn");
 const loopToggle = document.getElementById("loopToggle");
 const resetFxBtn = document.getElementById("resetFxBtn");
+const exportBtn = document.getElementById("exportBtn");
 
-const volumeSlider = document.getElementById("volumeSlider");
-const volPercent = document.getElementById("volPercent");
-const pitchSlider = document.getElementById("pitchSlider");
-const pitchValue = document.getElementById("pitchValue");
-const filterSlider = document.getElementById("filterSlider");
-const filterLabel = document.getElementById("filterLabel");
-const panSlider = document.getElementById("panSlider");
-const panLabel = document.getElementById("panLabel");
-const reverbSlider = document.getElementById("reverbSlider");
-const reverbLabel = document.getElementById("reverbLabel");
-const driveSlider = document.getElementById("driveSlider");
-const driveLabel = document.getElementById("driveLabel");
+// Prvky
+const volumeSlider = document.getElementById("volumeSlider"); const volPercent = document.getElementById("volPercent");
+const pitchSlider = document.getElementById("pitchSlider"); const pitchValue = document.getElementById("pitchValue");
+const filterSlider = document.getElementById("filterSlider"); const filterLabel = document.getElementById("filterLabel");
+const panSlider = document.getElementById("panSlider"); const panLabel = document.getElementById("panLabel");
+const reverbSlider = document.getElementById("reverbSlider"); const reverbLabel = document.getElementById("reverbLabel");
+const driveSlider = document.getElementById("driveSlider"); const driveLabel = document.getElementById("driveLabel");
+const eqLowSlider = document.getElementById("eqLowSlider"); const eqLowLabel = document.getElementById("eqLowLabel");
+const eqMidSlider = document.getElementById("eqMidSlider"); const eqMidLabel = document.getElementById("eqMidLabel");
+const eqHighSlider = document.getElementById("eqHighSlider"); const eqHighLabel = document.getElementById("eqHighLabel");
+const echoSlider = document.getElementById("echoSlider"); const echoLabel = document.getElementById("echoLabel");
+const flangerSlider = document.getElementById("flangerSlider"); const flangerLabel = document.getElementById("flangerLabel");
+const lofiSlider = document.getElementById("lofiSlider"); const lofiLabel = document.getElementById("lofiLabel");
+const gaterSlider = document.getElementById("gaterSlider"); const gaterLabel = document.getElementById("gaterLabel");
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const seekBar = document.getElementById("seekBar");
 const currentTimeEl = document.getElementById("currentTime");
 const durationTimeEl = document.getElementById("durationTime");
+const jogWheel = document.getElementById("jogWheel");
 
+// ==========================================
+// WEB AUDIO API a VYTVORENIE VŠETKÝCH EFEKTOV
+// ==========================================
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
+
 const analyser = audioCtx.createAnalyser();
-const filterNode = audioCtx.createBiquadFilter();
-const panNode = audioCtx.createStereoPanner();
-const driveNode = audioCtx.createWaveShaper();
-const dryNode = audioCtx.createGain();
-const wetNode = audioCtx.createGain();
-
-filterNode.type = "allpass";
-panNode.pan.value = 0;
-dryNode.gain.value = 1.0;
-wetNode.gain.value = 0.0;
-driveNode.curve = null;
-
 analyser.fftSize = 256;
+analyser.smoothingTimeConstant = 0.85;
+
+// Základ
+const filterNode = audioCtx.createBiquadFilter(); filterNode.type = "allpass";
+const panNode = audioCtx.createStereoPanner(); panNode.pan.value = 0;
+const driveNode = audioCtx.createWaveShaper(); driveNode.curve = null;
+
+const preMix = audioCtx.createGain(); 
+const dryNode = audioCtx.createGain(); dryNode.gain.value = 1.0;
+const wetNode = audioCtx.createGain(); wetNode.gain.value = 0.0;
+
+// Reverb (VERB)
+const convolverNode = audioCtx.createConvolver();
+function createReverbBuffer(ctx, duration = 2.5, decay = 2.5) {
+    const length = ctx.sampleRate * duration;
+    const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+    for (let i = 0; i < length; i++) {
+        left[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+        right[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+    }
+    return impulse;
+}
+convolverNode.buffer = createReverbBuffer(audioCtx);
+
+// 3-Band EQ (LOW, MID, HIGH)
+const eqLowNode = audioCtx.createBiquadFilter(); eqLowNode.type = 'lowshelf'; eqLowNode.frequency.value = 250;
+const eqMidNode = audioCtx.createBiquadFilter(); eqMidNode.type = 'peaking'; eqMidNode.frequency.value = 1000;
+const eqHighNode = audioCtx.createBiquadFilter(); eqHighNode.type = 'highshelf'; eqHighNode.frequency.value = 4000;
+
+// LO-FI (Bitcrusher)
+const lofiNode = audioCtx.createWaveShaper(); lofiNode.curve = null;
+function makeBitcrusherCurve(bitDepth) {
+    let steps = Math.pow(2, Math.max(1, bitDepth));
+    let curve = new Float32Array(44100);
+    for(let i=0; i<44100; i++) {
+        let x = i * 2 / 44100 - 1;
+        curve[i] = Math.round(x * steps) / steps;
+    }
+    return curve;
+}
+
+// GATER (Tremolo LFO)
+const gaterNode = audioCtx.createGain(); gaterNode.gain.value = 1.0;
+const gaterLFO = audioCtx.createOscillator(); gaterLFO.type = 'sine'; gaterLFO.frequency.value = 8;
+const gaterDepth = audioCtx.createGain(); gaterDepth.gain.value = 0;
+gaterLFO.connect(gaterDepth); gaterDepth.connect(gaterNode.gain); gaterLFO.start();
+
+// ECHO (Delay)
+const echoDelay = audioCtx.createDelay(5.0); echoDelay.delayTime.value = 0.33;
+const echoFeedback = audioCtx.createGain(); echoFeedback.gain.value = 0.5;
+const echoWet = audioCtx.createGain(); echoWet.gain.value = 0.0;
+echoDelay.connect(echoFeedback); echoFeedback.connect(echoDelay); echoDelay.connect(echoWet);
+
+// FLANGER 
+const flangerDelay = audioCtx.createDelay(); flangerDelay.delayTime.value = 0.005;
+const flangerFeedback = audioCtx.createGain(); flangerFeedback.gain.value = 0.6;
+const flangerLFO = audioCtx.createOscillator(); flangerLFO.type = 'sine'; flangerLFO.frequency.value = 0.2;
+const flangerDepth = audioCtx.createGain(); flangerDepth.gain.value = 0.002;
+flangerLFO.connect(flangerDepth); flangerDepth.connect(flangerDelay.delayTime); flangerLFO.start();
+const flangerWet = audioCtx.createGain(); flangerWet.gain.value = 0.0;
+flangerDelay.connect(flangerFeedback); flangerFeedback.connect(flangerDelay); flangerDelay.connect(flangerWet);
+
 const bufferLength = analyser.frequencyBinCount;
 const dataArray = new Uint8Array(bufferLength);
 
 let source;
 let isPlaying = false;
 let isDraggingSeek = false;
-let fileLoaded = false; // PRIDANÉ: sledovanie či je súbor načítaný
+let fileLoaded = false;
+let rawAudioBuffer = null;
+
+let jogRotation = 0;
+let isJogging = false;
+let lastAngle = 0;
+let wasPlayingBeforeJog = false;
+let virtualTime = 0;
+
+// JOG WHEEL LOGIKA
+function getAngle(x, y) {
+    const rect = jogWheel.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    return Math.atan2(y - centerY, x - centerX);
+}
+
+jogWheel.addEventListener('mousedown', (e) => {
+    if (!checkFile()) return;
+    isJogging = true;
+    wasPlayingBeforeJog = !audio.paused; 
+    audio.pause(); 
+    virtualTime = audio.currentTime;
+    lastAngle = getAngle(e.clientX, e.clientY);
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isJogging) return;
+    const currentAngle = getAngle(e.clientX, e.clientY);
+    let delta = currentAngle - lastAngle;
+    
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    
+    jogRotation += delta * (180 / Math.PI);
+    jogWheel.style.transform = `rotate(${jogRotation}deg)`;
+    
+    virtualTime += delta * 2;
+    if (virtualTime < 0) virtualTime = 0;
+    if (audio.duration && virtualTime > audio.duration) virtualTime = audio.duration;
+
+    seekBar.value = virtualTime; // Zrušený Math.floor pre plynulý slider
+    currentTimeEl.textContent = formatTime(virtualTime);
+
+    if (rawAudioBuffer && Math.abs(delta) > 0.02) {
+        let scratchSrc = audioCtx.createBufferSource();
+        scratchSrc.buffer = rawAudioBuffer;
+        scratchSrc.playbackRate.value = Math.abs(delta) * 10; 
+        
+        let scratchVolume = audioCtx.createGain();
+        scratchVolume.gain.value = audio.volume; 
+
+        scratchSrc.connect(scratchVolume);
+        
+        scratchVolume.connect(lofiNode);
+        
+        scratchSrc.start(0, virtualTime, 0.05);
+    }
+
+    lastAngle = currentAngle;
+});
+
+window.addEventListener('mouseup', () => {
+    if (!isJogging) return;
+    isJogging = false;
+    audio.currentTime = virtualTime;
+    if (wasPlayingBeforeJog) {
+        audio.play();
+    }
+});
 
 function checkFile() {
     if (!fileLoaded) {
-        alert("Najprv musíš vybrať hudobný súbor! 📁");
+        alert("Súbor sa buď ešte načítava, alebo nebol vybraný!!!");
         return false;
     }
     return true;
@@ -453,19 +715,47 @@ window.addEventListener('load', () => {
     panSlider.value = 0; panLabel.textContent = "MID";
     reverbSlider.value = 0; reverbLabel.textContent = "0%";
     driveSlider.value = 0; driveLabel.textContent = "0";
+    
+    eqLowSlider.value = 0; eqLowLabel.textContent = "0dB";
+    eqMidSlider.value = 0; eqMidLabel.textContent = "0dB";
+    eqHighSlider.value = 0; eqHighLabel.textContent = "0dB";
+    echoSlider.value = 0; echoLabel.textContent = "0%";
+    flangerSlider.value = 0; flangerLabel.textContent = "0%";
+    lofiSlider.value = 0; lofiLabel.textContent = "OFF";
+    gaterSlider.value = 0; gaterLabel.textContent = "0%";
+
     seekBar.value = 0; currentTimeEl.textContent = "0:00";
+    durationTimeEl.textContent = "0:00";
+    loopToggle.checked = false; 
+    audio.loop = false;
+});
+
+removeFileBtn.addEventListener("click", () => {
+    audio.pause(); audio.src = ""; fileInput.value = ""; fileLoaded = false; rawAudioBuffer = null;
+    document.getElementById("fileName").textContent = "Vložiť súbor";
+    removeFileBtn.style.display = "none"; isPlaying = false; btnText.textContent = "Štart";
+    toggleBtn.querySelector(".icon").textContent = "▶"; seekBar.value = 0;
+    currentTimeEl.textContent = "0:00"; durationTimeEl.textContent = "0:00"; loopToggle.checked = false;
+    jogRotation = 0; jogWheel.style.transform = `rotate(0deg)`;
+});
+
+// ZACHYCOVANIE POSUVNÍKOV
+volumeSlider.addEventListener("input", (e) => { 
+    if (!checkFile()) { e.target.value = 0.5; return; }
+    audio.volume = e.target.value; volPercent.textContent = Math.round(e.target.value * 100) + "%"; 
 });
 
 filterSlider.addEventListener("input", (e) => {
     if (!checkFile()) { e.target.value = 0; return; }
     const val = parseFloat(e.target.value);
-    if (val > 0.05) { 
-        filterNode.type = "highpass"; filterNode.frequency.value = val * 5000; filterLabel.textContent = "HPF"; 
-    } else if (val < -0.05) { 
-        filterNode.type = "lowpass"; filterNode.frequency.value = 20000 + (val * 19800); filterLabel.textContent = "LPF"; 
-    } else { 
-        filterNode.type = "allpass"; filterLabel.textContent = "OFF"; 
-    }
+    if (val > 0.05) { filterNode.type = "highpass"; filterNode.frequency.value = val * 5000; filterLabel.textContent = "HPF"; } 
+    else if (val < -0.05) { filterNode.type = "lowpass"; filterNode.frequency.value = 20000 + (val * 19800); filterLabel.textContent = "LPF"; } 
+    else { filterNode.type = "allpass"; filterLabel.textContent = "OFF"; }
+});
+
+pitchSlider.addEventListener("input", (e) => { 
+    if (!checkFile()) { e.target.value = 1.0; return; }
+    audio.playbackRate = e.target.value; pitchValue.textContent = parseFloat(e.target.value).toFixed(2) + "x"; 
 });
 
 panSlider.addEventListener("input", (e) => {
@@ -475,6 +765,13 @@ panSlider.addEventListener("input", (e) => {
     panLabel.textContent = val > 0.1 ? "RIGHT" : val < -0.1 ? "LEFT" : "MID";
 });
 
+reverbSlider.addEventListener("input", (e) => {
+    if (!checkFile()) { e.target.value = 0; return; }
+    const val = parseFloat(e.target.value);
+    wetNode.gain.value = val; dryNode.gain.value = 1 - val;
+    reverbLabel.textContent = Math.round(val * 100) + "%";
+});
+
 driveSlider.addEventListener("input", (e) => {
     if (!checkFile()) { e.target.value = 0; return; }
     const val = parseInt(e.target.value);
@@ -482,116 +779,282 @@ driveSlider.addEventListener("input", (e) => {
     driveLabel.textContent = val;
 });
 
-reverbSlider.addEventListener("input", (e) => {
+eqLowSlider.addEventListener("input", (e) => { if (checkFile()) { eqLowNode.gain.value = e.target.value; eqLowLabel.textContent = e.target.value + "dB"; } });
+eqMidSlider.addEventListener("input", (e) => { if (checkFile()) { eqMidNode.gain.value = e.target.value; eqMidLabel.textContent = e.target.value + "dB"; } });
+eqHighSlider.addEventListener("input", (e) => { if (checkFile()) { eqHighNode.gain.value = e.target.value; eqHighLabel.textContent = e.target.value + "dB"; } });
+
+echoSlider.addEventListener("input", (e) => { if (checkFile()) { echoWet.gain.value = e.target.value; echoLabel.textContent = Math.round(e.target.value * 100) + "%"; } });
+flangerSlider.addEventListener("input", (e) => { if (checkFile()) { flangerWet.gain.value = e.target.value; flangerLabel.textContent = Math.round(e.target.value * 100) + "%"; } });
+
+lofiSlider.addEventListener("input", (e) => {
     if (!checkFile()) { e.target.value = 0; return; }
-    const val = parseFloat(e.target.value);
-    wetNode.gain.value = val;
-    dryNode.gain.value = 1 - val;
-    reverbLabel.textContent = Math.round(val * 100) + "%";
+    let val = parseFloat(e.target.value);
+    if (val === 0) { lofiNode.curve = null; lofiLabel.textContent = "OFF"; } 
+    else { lofiNode.curve = makeBitcrusherCurve(16 - (val * 14)); lofiLabel.textContent = Math.round(val * 100) + "%"; }
 });
 
-volumeSlider.addEventListener("input", (e) => { 
-    if (!checkFile()) { e.target.value = 0.5; return; }
-    audio.volume = e.target.value; volPercent.textContent = Math.round(e.target.value * 100) + "%"; 
+gaterSlider.addEventListener("input", (e) => {
+    if (!checkFile()) { e.target.value = 0; return; }
+    let val = parseFloat(e.target.value);
+    gaterNode.gain.value = 1 - (val / 2);
+    gaterDepth.gain.value = val / 2;
+    gaterLabel.textContent = Math.round(val * 100) + "%";
 });
 
-pitchSlider.addEventListener("input", (e) => { 
-    if (!checkFile()) { e.target.value = 1.0; return; }
-    audio.playbackRate = e.target.value; pitchValue.textContent = parseFloat(e.target.value).toFixed(2) + "x"; 
-});
-
-cueBtn.addEventListener("click", () => { 
-    if (checkFile()) audio.currentTime = 0; 
-});
-
-loopToggle.addEventListener("change", () => {
-    if (!checkFile()) { loopToggle.checked = false; return; }
-    audio.loop = loopToggle.checked;
-});
-
-audio.addEventListener("ended", () => {
-    if (!audio.loop) {
-        isPlaying = false;
-        btnText.textContent = "Štart";
-        toggleBtn.querySelector(".icon").textContent = "▶";
-    }
-});
+cueBtn.addEventListener("click", () => { if (checkFile()) audio.currentTime = 0; });
+loopToggle.addEventListener("change", function() { if (!fileLoaded) { alert("Súbor sa ešte načítava, vydrž chvíľu! 📁"); this.checked = false; return; } audio.loop = this.checked; });
 
 resetFxBtn.addEventListener("click", () => {
     if (!checkFile()) return;
-    volumeSlider.value = 0.5; volumeSlider.dispatchEvent(new Event('input'));
-    filterSlider.value = 0; filterSlider.dispatchEvent(new Event('input'));
-    reverbSlider.value = 0; reverbSlider.dispatchEvent(new Event('input'));
-    driveSlider.value = 0; driveSlider.dispatchEvent(new Event('input'));
-    panSlider.value = 0; panSlider.dispatchEvent(new Event('input'));
-    pitchSlider.value = 1.0; pitchSlider.dispatchEvent(new Event('input'));
+    const s = [volumeSlider, filterSlider, reverbSlider, driveSlider, panSlider, pitchSlider, eqLowSlider, eqMidSlider, eqHighSlider, echoSlider, flangerSlider, lofiSlider, gaterSlider];
+    s.forEach(el => { 
+        el.value = (el.id === 'volumeSlider') ? 0.5 : (el.id === 'pitchSlider' ? 1.0 : 0); 
+        el.dispatchEvent(new Event('input')); 
+    });
     loopToggle.checked = false; audio.loop = false;
 });
 
-fileInput.addEventListener("change", function () {
+fileInput.addEventListener("change", async function () {
     const file = this.files[0]; if (!file) return;
-    fileLoaded = true; // OZNAČÍME, ŽE SÚBOR JE TU
-    document.getElementById("fileName").textContent = file.name;
-    audio.src = URL.createObjectURL(file);
-    audio.load();
+    
+    audio.pause(); isPlaying = false; btnText.textContent = "Štart";
+    toggleBtn.querySelector(".icon").textContent = "▶"; seekBar.value = 0; currentTimeEl.textContent = "0:00";
+    
+    fileLoaded = false; 
+    document.getElementById("fileName").textContent = "Načítavam..."; 
+    removeFileBtn.style.display = "none";
 
-    if (source) source.disconnect();
-    source = audioCtx.createMediaElementSource(audio);
-    source.connect(driveNode);
-    driveNode.connect(filterNode);
-    filterNode.connect(panNode);
-    panNode.connect(dryNode);
-    panNode.connect(wetNode);
-    dryNode.connect(analyser);
-    wetNode.connect(analyser);
-    analyser.connect(audioCtx.destination);
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        rawAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+        
+        audio.src = URL.createObjectURL(file);
+        audio.load();
+        
+        if (!source) {
+            source = audioCtx.createMediaElementSource(audio);
+            // SÉRIOVÉ ZAPOJENIE
+            source.connect(lofiNode);
+            lofiNode.connect(gaterNode);
+            gaterNode.connect(eqLowNode);
+            eqLowNode.connect(eqMidNode);
+            eqMidNode.connect(eqHighNode);
+            eqHighNode.connect(driveNode);
+            driveNode.connect(filterNode);
+            filterNode.connect(panNode);
+            panNode.connect(preMix); 
+            
+            // PARALELNÉ EFEKTY
+            preMix.connect(dryNode); 
+            preMix.connect(convolverNode); convolverNode.connect(wetNode); 
+            preMix.connect(echoDelay); 
+            preMix.connect(flangerDelay); 
+            
+            // VŠETKO DO ANALYZÁTORA A DO REPRODUKTOROV
+            dryNode.connect(analyser);
+            wetNode.connect(analyser);
+            echoWet.connect(analyser);
+            flangerWet.connect(analyser);
+            
+            analyser.connect(audioCtx.destination);
+        }
+
+        fileLoaded = true; 
+        document.getElementById("fileName").textContent = file.name; 
+        removeFileBtn.style.display = "block";
+    } catch (err) {
+        console.error("Chyba načítavania zvuku:", err);
+        alert("Nepodarilo sa načítať audio súbor.");
+        document.getElementById("fileName").textContent = "Vložiť súbor";
+    }
 });
 
 toggleBtn.addEventListener("click", async () => {
     if (!checkFile()) return;
     if (audioCtx.state === 'suspended') await audioCtx.resume();
-    
     const iconEl = toggleBtn.querySelector(".icon");
-
     if (!isPlaying) { 
-        audio.play(); 
-        isPlaying = true; 
-        btnText.textContent = "Stop"; 
-        iconEl.textContent = "■";
-    } 
-    else { 
-        audio.pause(); 
-        isPlaying = false; 
-        btnText.textContent = "Štart"; 
-        iconEl.textContent = "▶";
+        audio.play(); isPlaying = true; btnText.textContent = "Stop"; iconEl.textContent = "■";
+    } else { 
+        audio.pause(); isPlaying = false; btnText.textContent = "Štart"; iconEl.textContent = "▶";
     }
 });
 
 function formatTime(s) { if(isNaN(s)) return "0:00"; let m=Math.floor(s/60), r=Math.floor(s%60); return m+":"+(r<10?"0":"")+r; }
-audio.addEventListener("loadedmetadata", () => { seekBar.max = Math.floor(audio.duration); durationTimeEl.textContent = formatTime(audio.duration); });
-audio.addEventListener("timeupdate", () => { if (!isDraggingSeek) { seekBar.value = Math.floor(audio.currentTime); currentTimeEl.textContent = formatTime(audio.currentTime); } });
 
-seekBar.addEventListener("input", () => { 
-    if (!checkFile()) { seekBar.value = 0; return; }
-    isDraggingSeek = true; 
-    currentTimeEl.textContent = formatTime(seekBar.value); 
+// ZRUŠENÝ ZBYTOČNÝ ZAOKRÚHĽOVAČ DĹŽKY
+audio.addEventListener("loadedmetadata", () => { 
+    seekBar.max = audio.duration; 
+    durationTimeEl.textContent = formatTime(audio.duration); 
 });
 
-seekBar.addEventListener("change", () => { 
-    if (checkFile()) { audio.currentTime = seekBar.value; }
-    isDraggingSeek = false; 
+// ZRUŠENÁ AKTUALIZÁCIA ČASOVAČA CEZ POMALÝ 'TIMEUPDATE'. NECHALI SME TO NA 60FPS FUNKCIU 'DRAW()'
+seekBar.addEventListener("input", () => { if (!checkFile()) { seekBar.value = 0; return; } isDraggingSeek = true; currentTimeEl.textContent = formatTime(seekBar.value); });
+seekBar.addEventListener("change", () => { if (checkFile()) { audio.currentTime = seekBar.value; } isDraggingSeek = false; });
+
+// EXPORT DO MP3 / WAV
+exportBtn.addEventListener("click", async () => {
+    if (!checkFile() || !rawAudioBuffer) return;
+    exportBtn.disabled = true; exportBtn.textContent = "Pripravujem...";
+    
+    const playbackRate = parseFloat(pitchSlider.value);
+    
+    const newDuration = rawAudioBuffer.duration / playbackRate;
+    const sampleRate = rawAudioBuffer.sampleRate;
+    
+    const lengthInSamples = Math.ceil(newDuration * sampleRate);
+    const offlineCtx = new OfflineAudioContext(2, lengthInSamples, sampleRate);
+    
+    const offlineSource = offlineCtx.createBufferSource();
+    offlineSource.buffer = rawAudioBuffer;
+    offlineSource.playbackRate.value = playbackRate;
+    
+    const offLofi = offlineCtx.createWaveShaper(); offLofi.curve = lofiNode.curve;
+    const offGater = offlineCtx.createGain(); offGater.gain.value = gaterNode.gain.value;
+    const offGaterLFO = offlineCtx.createOscillator(); offGaterLFO.type = 'sine'; offGaterLFO.frequency.value = 8;
+    const offGaterDepth = offlineCtx.createGain(); offGaterDepth.gain.value = gaterDepth.gain.value;
+    offGaterLFO.connect(offGaterDepth); offGaterDepth.connect(offGater.gain); offGaterLFO.start();
+
+    const offEqLow = offlineCtx.createBiquadFilter(); offEqLow.type = 'lowshelf'; offEqLow.frequency.value = 250; offEqLow.gain.value = eqLowNode.gain.value;
+    const offEqMid = offlineCtx.createBiquadFilter(); offEqMid.type = 'peaking'; offEqMid.frequency.value = 1000; offEqMid.gain.value = eqMidNode.gain.value;
+    const offEqHigh = offlineCtx.createBiquadFilter(); offEqHigh.type = 'highshelf'; offEqHigh.frequency.value = 4000; offEqHigh.gain.value = eqHighNode.gain.value;
+
+    const offDrive = offlineCtx.createWaveShaper(); offDrive.curve = driveNode.curve;
+    const offFilter = offlineCtx.createBiquadFilter(); offFilter.type = filterNode.type; offFilter.frequency.value = filterNode.frequency.value;
+    const offPan = offlineCtx.createStereoPanner(); offPan.pan.value = panNode.pan.value;
+    const offPreMix = offlineCtx.createGain();
+    const offDry = offlineCtx.createGain(); offDry.gain.value = dryNode.gain.value;
+    const offWet = offlineCtx.createGain(); offWet.gain.value = wetNode.gain.value;
+    const offMasterVolume = offlineCtx.createGain(); offMasterVolume.gain.value = audio.volume;
+    
+    const offConvolver = offlineCtx.createConvolver(); offConvolver.buffer = convolverNode.buffer;
+
+    const offEchoDelay = offlineCtx.createDelay(5.0); offEchoDelay.delayTime.value = 0.33;
+    const offEchoFeedback = offlineCtx.createGain(); offEchoFeedback.gain.value = 0.5;
+    const offEchoWet = offlineCtx.createGain(); offEchoWet.gain.value = echoWet.gain.value;
+    offEchoDelay.connect(offEchoFeedback); offEchoFeedback.connect(offEchoDelay); offEchoDelay.connect(offEchoWet);
+
+    const offFlangerDelay = offlineCtx.createDelay(); offFlangerDelay.delayTime.value = 0.005;
+    const offFlangerFeedback = offlineCtx.createGain(); offFlangerFeedback.gain.value = 0.6;
+    const offFlangerLFO = offlineCtx.createOscillator(); offFlangerLFO.type = 'sine'; offFlangerLFO.frequency.value = 0.2;
+    const offFlangerDepth = offlineCtx.createGain(); offFlangerDepth.gain.value = 0.002;
+    offFlangerLFO.connect(offFlangerDepth); offFlangerDepth.connect(offFlangerDelay.delayTime); offFlangerLFO.start();
+    const offFlangerWet = offlineCtx.createGain(); offFlangerWet.gain.value = flangerWet.gain.value;
+    offFlangerDelay.connect(offFlangerFeedback); offFlangerFeedback.connect(offFlangerDelay); offFlangerDelay.connect(offFlangerWet);
+
+    offlineSource.connect(offLofi);
+    offLofi.connect(offGater);
+    offGater.connect(offEqLow); offEqLow.connect(offEqMid); offEqMid.connect(offEqHigh);
+    offEqHigh.connect(offDrive); offDrive.connect(offFilter); offFilter.connect(offPan);
+    offPan.connect(offPreMix);
+    
+    offPreMix.connect(offDry); 
+    offPreMix.connect(offConvolver); offConvolver.connect(offWet);
+    offPreMix.connect(offEchoDelay);
+    offPreMix.connect(offFlangerDelay);
+    
+    offDry.connect(offMasterVolume);
+    offWet.connect(offMasterVolume);
+    offEchoWet.connect(offMasterVolume);
+    offFlangerWet.connect(offMasterVolume);
+    
+    offMasterVolume.connect(offlineCtx.destination);
+    
+    offlineSource.start();
+    const renderedBuffer = await offlineCtx.startRendering();
+
+    try {
+        if ('showSaveFilePicker' in window) {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: 'moj-mix.mp3',
+                types: [
+                    { description: 'MP3 Audio (Komprimované)', accept: {'audio/mpeg': ['.mp3']} },
+                    { description: 'WAVE Audio (Štúdiová kvalita)', accept: {'audio/wav': ['.wav']} }
+                ]
+            });
+            const fileExtension = handle.name.split('.').pop().toLowerCase();
+            const writable = await handle.createWritable();
+            if (fileExtension === 'wav') { await writable.write(bufferToWave(renderedBuffer, renderedBuffer.length)); } 
+            else { exportBtn.textContent = "Enkódujem MP3..."; await writable.write(bufferToMp3(renderedBuffer)); }
+            await writable.close();
+        } else {
+            let fullFileName = prompt("Zadaj názov súboru s príponou (.mp3 alebo .wav):", "upravene.mp3");
+            if (!fullFileName) throw new Error("Zrušené");
+            let finalBlob = (fullFileName.split('.').pop().toLowerCase() === 'wav') ? bufferToWave(renderedBuffer, renderedBuffer.length) : bufferToMp3(renderedBuffer);
+            const url = URL.createObjectURL(finalBlob);
+            const anchor = document.createElement("a"); anchor.href = url; anchor.download = fullFileName; anchor.click(); URL.revokeObjectURL(url);
+        }
+    } catch (err) { console.log("Export zrušený."); }
+
+    exportBtn.disabled = false; exportBtn.textContent = "📥 Export Track";
 });
+
+function bufferToMp3(buffer) {
+    const channels = buffer.numberOfChannels; const sampleRate = buffer.sampleRate;
+    const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128); const mp3Data = [];
+    const left = buffer.getChannelData(0); const right = channels > 1 ? buffer.getChannelData(1) : left;
+    const lPCM = new Int16Array(left.length); const rPCM = new Int16Array(right.length);
+    for (let i = 0; i < left.length; i++) {
+        lPCM[i] = Math.max(-1, Math.min(1, left[i])) * 32767; rPCM[i] = Math.max(-1, Math.min(1, right[i])) * 32767;
+    }
+    for (let i = 0; i < lPCM.length; i += 1152) {
+        const mp3buf = mp3encoder.encodeBuffer(lPCM.subarray(i, i + 1152), rPCM.subarray(i, i + 1152));
+        if (mp3buf.length > 0) mp3Data.push(mp3buf);
+    }
+    const flush = mp3encoder.flush(); if (flush.length > 0) mp3Data.push(flush);
+    return new Blob(mp3Data, { type: 'audio/mpeg' });
+}
+
+function bufferToWave(abuffer, len) {
+    let numOfChan = abuffer.numberOfChannels, length = len * numOfChan * 2 + 44, buffer = new ArrayBuffer(length), view = new DataView(buffer), channels = [], i, sample, offset = 0, pos = 0;
+    function setUint16(data) { view.setUint16(pos, data, true); pos += 2; } function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+    setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157); setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+    setUint32(abuffer.sampleRate); setUint32(abuffer.sampleRate * 2 * numOfChan); setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164); setUint32(length - pos - 4);
+    for(i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+    while(pos < length) {
+        for(i = 0; i < numOfChan; i++) {
+            sample = Math.max(-1, Math.min(1, channels[i][offset])); sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+            view.setInt16(pos, sample, true); pos += 2;
+        }
+        offset++;
+    }
+    return new Blob([buffer], {type: "audio/wav"});
+}
 
 function draw() {
     requestAnimationFrame(draw);
     analyser.getByteFrequencyData(dataArray);
-    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const barWidth = (canvas.width / bufferLength) * 2; let x = 0;
-    for (let i = 0; i < bufferLength; i++) {
-        let barHeight = dataArray[i];
-        ctx.fillStyle = `rgb(${barHeight + 100}, 0, 255)`;
-        ctx.fillRect(x, canvas.height - (barHeight/255)*canvas.height, barWidth, (barHeight/255)*canvas.height);
-        x += barWidth + 1;
+    
+    ctx.fillStyle = "#000"; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const usefulLength = Math.floor(bufferLength * 0.7);
+    const barWidth = (canvas.width / usefulLength) * 1.5;
+    let x = 0;
+    
+    for (let i = 0; i < usefulLength; i++) {
+        let barHeight = dataArray[i]; 
+        let percentX = i / usefulLength;
+        ctx.fillStyle = `rgb(${barHeight + (50 * percentX)}, ${150 * percentX}, ${255 - (100 * percentX)})`;
+        
+        let normalized = barHeight / 255;
+        let dynamicHeight = Math.pow(normalized, 2.5);
+        let visualBoost = 1 + (percentX * 0.8); 
+        let finalHeight = Math.max(2, dynamicHeight * canvas.height * visualBoost);
+        
+        ctx.fillRect(x, canvas.height - finalHeight, barWidth, finalHeight);
+        x += barWidth + 2;
+    }
+
+    if (isPlaying && !isJogging) {
+        jogRotation += (1.5 * audio.playbackRate);
+        jogWheel.style.transform = `rotate(${jogRotation}deg)`;
+    }
+
+    // --- NOVÉ: PLYNULÁ AKTUALIZÁCIA ČASOVAČA CEZ 60FPS DRAW FUNKCIU ---
+    if (isPlaying && !isDraggingSeek && !isJogging) {
+        seekBar.value = audio.currentTime;
+        currentTimeEl.textContent = formatTime(audio.currentTime);
     }
 }
 draw();
