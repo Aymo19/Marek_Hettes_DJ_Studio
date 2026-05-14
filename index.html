@@ -649,39 +649,52 @@ jogWheel.addEventListener('mousedown', (e) => {
 window.addEventListener('mousemove', (e) => {
     if (!isJogging) return;
     const currentAngle = getAngle(e.clientX, e.clientY);
-    let delta = currentAngle - lastAngle;
+    let delta = currentAngle - lastAngle; // toto je v radiánoch
     
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
     
-    jogRotation += delta * (180 / Math.PI);
-    jogWheel.style.transform = `rotate(${jogRotation}deg)`;
+    let deltaDeg = delta * (180 / Math.PI); // premeníme na reálne stupne
     
-    virtualTime += delta * 2;
-    if (virtualTime < 0) virtualTime = 0;
-    if (audio.duration && virtualTime > audio.duration) virtualTime = audio.duration;
-
-    seekBar.value = virtualTime; // Zrušený Math.floor pre plynulý slider
-    currentTimeEl.textContent = formatTime(virtualTime);
-
-    if (rawAudioBuffer && Math.abs(delta) > 0.02) {
-        let scratchSrc = audioCtx.createBufferSource();
-        scratchSrc.buffer = rawAudioBuffer;
-        scratchSrc.playbackRate.value = Math.abs(delta) * 10; 
+    // --- OPRAVA: Pevný pomer! 90 stupňov = 1 sekunda zvuku ---
+    let timeChange = deltaDeg / 90; 
+    let novyCas = virtualTime + timeChange;
+    
+    // Hranice pesničky
+    if (novyCas <= 0) {
+        timeChange = -virtualTime;
+        novyCas = 0;
+    } else if (audio.duration && novyCas >= audio.duration) {
+        timeChange = audio.duration - virtualTime;
+        novyCas = audio.duration;
+    }
+    
+    if (timeChange !== 0) {
+        virtualTime = novyCas;
         
-        let scratchVolume = audioCtx.createGain();
-        scratchVolume.gain.value = audio.volume; 
+        // Vizuálna rotácia teraz presne kopíruje reálny čas zvuku
+        jogWheel.style.transform = `rotate(${virtualTime * 90}deg)`;
+        
+        seekBar.value = virtualTime;
+        currentTimeEl.textContent = formatTime(virtualTime);
 
-        scratchSrc.connect(scratchVolume);
-        
-        scratchVolume.connect(lofiNode);
-        
-        scratchSrc.start(0, virtualTime, 0.05);
+        if (rawAudioBuffer && Math.abs(timeChange) > 0.01) {
+            let scratchSrc = audioCtx.createBufferSource();
+            scratchSrc.buffer = rawAudioBuffer;
+            scratchSrc.playbackRate.value = Math.abs(timeChange) * 30; // Zvuk upravený pre plynulosť
+            
+            let scratchVolume = audioCtx.createGain();
+            scratchVolume.gain.value = audio.volume; 
+
+            scratchSrc.connect(scratchVolume);
+            scratchVolume.connect(lofiNode);
+            
+            scratchSrc.start(0, virtualTime, 0.05);
+        }
     }
 
     lastAngle = currentAngle;
 });
-
 window.addEventListener('mouseup', () => {
     if (!isJogging) return;
     isJogging = false;
@@ -801,8 +814,19 @@ gaterSlider.addEventListener("input", (e) => {
     gaterLabel.textContent = Math.round(val * 100) + "%";
 });
 
-cueBtn.addEventListener("click", () => { if (checkFile()) audio.currentTime = 0; });
-loopToggle.addEventListener("change", function() { if (!fileLoaded) { alert("Súbor sa ešte načítava, vydrž chvíľu! 📁"); this.checked = false; return; } audio.loop = this.checked; });
+cueBtn.addEventListener("click", () => { 
+    if (checkFile()) {
+        audio.currentTime = 0;
+        
+        // --- OPRAVA: Manuálne vynulovanie UI prvkov ---
+        seekBar.value = 0;
+        currentTimeEl.textContent = "0:00";
+        
+        // Voliteľné: Vynuluje aj rotáciu kolieska na základnú pozíciu
+        jogRotation = 0;
+        jogWheel.style.transform = `rotate(0deg)`;
+    }
+});
 
 resetFxBtn.addEventListener("click", () => {
     if (!checkFile()) return;
@@ -872,11 +896,39 @@ fileInput.addEventListener("change", async function () {
 toggleBtn.addEventListener("click", async () => {
     if (!checkFile()) return;
     if (audioCtx.state === 'suspended') await audioCtx.resume();
-    const iconEl = toggleBtn.querySelector(".icon");
+    
     if (!isPlaying) { 
-        audio.play(); isPlaying = true; btnText.textContent = "Stop"; iconEl.textContent = "■";
+        // Ak sme na konci, urobíme kompletný reset
+        if (audio.currentTime >= audio.duration - 0.1) {
+            audio.currentTime = 0;
+            
+            // --- PRIDANÉ: Reset rotácie Jog Wheelu ---
+            jogRotation = 0;
+            jogWheel.style.transform = `rotate(0deg)`;
+            
+            // Reset slidera a textu (pre istotu)
+            seekBar.value = 0;
+            currentTimeEl.textContent = "0:00";
+        }
+
+        audio.play(); 
+        isPlaying = true; 
+        btnText.textContent = "Stop"; 
+        toggleBtn.querySelector(".icon").textContent = "■";
     } else { 
-        audio.pause(); isPlaying = false; btnText.textContent = "Štart"; iconEl.textContent = "▶";
+        audio.pause(); 
+        isPlaying = false; 
+        btnText.textContent = "Štart"; 
+        toggleBtn.querySelector(".icon").textContent = "▶";
+    }
+});
+
+audio.addEventListener("ended", () => {
+    // Ak nie je zapnutý loop, zastavíme to
+    if (!audio.loop) {
+        isPlaying = false;
+        btnText.textContent = "Štart";
+        toggleBtn.querySelector(".icon").textContent = "▶";
     }
 });
 
@@ -888,9 +940,24 @@ audio.addEventListener("loadedmetadata", () => {
     durationTimeEl.textContent = formatTime(audio.duration); 
 });
 
-// ZRUŠENÁ AKTUALIZÁCIA ČASOVAČA CEZ POMALÝ 'TIMEUPDATE'. NECHALI SME TO NA 60FPS FUNKCIU 'DRAW()'
-seekBar.addEventListener("input", () => { if (!checkFile()) { seekBar.value = 0; return; } isDraggingSeek = true; currentTimeEl.textContent = formatTime(seekBar.value); });
-seekBar.addEventListener("change", () => { if (checkFile()) { audio.currentTime = seekBar.value; } isDraggingSeek = false; });
+// 1. Aktualizácia počas ťahania posuvníka
+seekBar.addEventListener("input", () => { 
+    isDraggingSeek = true; 
+    const seekTime = parseFloat(seekBar.value);
+    currentTimeEl.textContent = formatTime(seekTime);
+    
+    // --- OPRAVA: Koliesko sa točí synchrónne s posuvníkom ---
+    jogWheel.style.transform = `rotate(${seekTime * 90}deg)`;
+});
+
+// 2. Aktualizácia po pustení posuvníka
+seekBar.addEventListener("change", () => { 
+    audio.currentTime = seekBar.value; 
+    isDraggingSeek = false; 
+    
+    // Uistíme sa, že rotácia presne sedí na cieľový čas
+    jogWheel.style.transform = `rotate(${audio.currentTime * 90}deg)`;
+});
 
 // EXPORT DO MP3 / WAV
 exportBtn.addEventListener("click", async () => {
@@ -1046,15 +1113,11 @@ function draw() {
         x += barWidth + 2;
     }
 
-    if (isPlaying && !isJogging) {
-        jogRotation += (1.5 * audio.playbackRate);
-        jogWheel.style.transform = `rotate(${jogRotation}deg)`;
-    }
-
-    // --- NOVÉ: PLYNULÁ AKTUALIZÁCIA ČASOVAČA CEZ 60FPS DRAW FUNKCIU ---
     if (isPlaying && !isDraggingSeek && !isJogging) {
+        // Všetko ide synchrónne a len vtedy, ak zrovna neťaháš posuvník ani netočíš kolieskom
         seekBar.value = audio.currentTime;
         currentTimeEl.textContent = formatTime(audio.currentTime);
+        jogWheel.style.transform = `rotate(${audio.currentTime * 90}deg)`;
     }
 }
 draw();
