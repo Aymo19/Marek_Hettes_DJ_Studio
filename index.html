@@ -646,6 +646,8 @@ jogWheel.addEventListener('mousedown', (e) => {
     lastAngle = getAngle(e.clientX, e.clientY);
 });
 
+
+
 window.addEventListener('mousemove', (e) => {
     if (!isJogging) return;
     const currentAngle = getAngle(e.clientX, e.clientY);
@@ -748,8 +750,24 @@ removeFileBtn.addEventListener("click", () => {
     document.getElementById("fileName").textContent = "Vložiť súbor";
     removeFileBtn.style.display = "none"; isPlaying = false; btnText.textContent = "Štart";
     toggleBtn.querySelector(".icon").textContent = "▶"; seekBar.value = 0;
-    currentTimeEl.textContent = "0:00"; durationTimeEl.textContent = "0:00"; loopToggle.checked = false;
+    currentTimeEl.textContent = "0:00"; durationTimeEl.textContent = "0:00"; loopToggle.addEventListener("change", () => {
+    if (!checkFile()) {
+        loopToggle.checked = false;
+        return;
+    }
+    audio.loop = loopToggle.checked;
+    console.log("Slučka nastavená na:", audio.loop);
+});
     jogRotation = 0; jogWheel.style.transform = `rotate(0deg)`;
+});
+
+loopToggle.addEventListener("change", () => {
+    if (!fileLoaded) {
+        loopToggle.checked = false;
+        return;
+    }
+    audio.loop = loopToggle.checked;
+    console.log("Loop je teraz:", audio.loop);
 });
 
 // ZACHYCOVANIE POSUVNÍKOV
@@ -924,12 +942,20 @@ toggleBtn.addEventListener("click", async () => {
 });
 
 audio.addEventListener("ended", () => {
-    // Ak nie je zapnutý loop, zastavíme to
-    if (!audio.loop) {
-        isPlaying = false;
-        btnText.textContent = "Štart";
-        toggleBtn.querySelector(".icon").textContent = "▶";
-    }
+    // Ak JE zapnutý loop, nerobíme nič, pesnička skočí na začiatok sama
+    if (audio.loop) return;
+
+    // Ak loop NIE JE zapnutý, vtedy vypneme tlačidlá a UI
+    isPlaying = false;
+    btnText.textContent = "Štart";
+    const iconEl = toggleBtn.querySelector(".icon");
+    if (iconEl) iconEl.textContent = "▶";
+
+    // Vrátime vizuálne prvky na začiatok
+    audio.currentTime = 0;
+    jogWheel.style.transform = `rotate(0deg)`;
+    seekBar.value = 0;
+    currentTimeEl.textContent = "0:00";
 });
 
 function formatTime(s) { if(isNaN(s)) return "0:00"; let m=Math.floor(s/60), r=Math.floor(s%60); return m+":"+(r<10?"0":"")+r; }
